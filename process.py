@@ -6,6 +6,20 @@ from dash import dcc, html
 import re
 
 
+def check(id):
+    mydb = mysql.connector.connect(
+        host="159.223.207.111",
+        user="sql_dev_mavmedia",
+        password="acDf7XtRxeibxyJw",
+        database="sql_dev_mavmedia"
+    )
+    mycursor = mydb.cursor()
+    sql = "select * from transcript where video = %s"
+    val = [id]
+    mycursor.execute(sql, val)
+    myresult = mycursor.fetchall()
+    return len(myresult)
+
 def convert_to_wav(id, file, format):
     print("Convirtiendo a wav")
     given_audio = AudioSegment.from_file(file, format=format)
@@ -64,27 +78,30 @@ def do_split(id, groups):
     audio = AudioSegment.from_wav(ofile)
     gidx = -1
     positions = []
+    timestamps = []
     for g in groups:
         start = re.findall('[0-9]+:[0-9]+:[0-9]+\.[0-9]+', string=g[0])[0]
         end = re.findall('[0-9]+:[0-9]+:[0-9]+\.[0-9]+', string=g[-1])[1]
+        timestamps.append(f"{start}->{end}: ")
         speaker = re.findall('SPEAKER_\d+', string=g[0])[0]
         positions.append(speaker)
         start = millisec(start)  # - spacermilli
         end = millisec(end)  # - spacermilli
         gidx += 1
         file = 'assets/ready/' + id + '_' + str(gidx) + '.wav'
+
         audio[start:end].export(file, format='wav')
-    return gidx, positions
+    return gidx, positions, timestamps
 
 
-def do_transcribe(id, gidx, speakers):
+def do_transcribe(id, gidx, speakers, times):
     print("Realizando transcripcion")
     tfinal = []
     inputs = []
     model = whisper.load_model("base")
     uniS = set(speakers)
     unicos = list(uniS)
-    print(f"Se han encontrado {len(unicos)} speakers")
+    # print(f"Se han encontrado {len(unicos)} speakers")
     for item in unicos:
         # print(f"Nuevo nombre para {item}")
         inputs.append(dcc.Input(
@@ -110,16 +127,16 @@ def do_transcribe(id, gidx, speakers):
         file = 'assets/ready/' + id + '_' + str(i) + '.wav'
         result = model.transcribe(file)
         message = speakers[i] + ": " + result["text"]
-        insert_db(id, speakers[i], result["text"])
+        insert_db(id, speakers[i], result["text"], times[i])
         tfinal.append(html.P(message))
-        tfinal.append(html.Div(
-            id="divfinal",
-            children=inputs
-        ))
+    tfinal.append(html.Div(
+        id="divfinal",
+        children=inputs
+    ))
     return html.Div(tfinal)
 
 
-def insert_db(id, speaker, message):
+def insert_db(id, speaker, message, tiempo):
     mydb = mysql.connector.connect(
         host="159.223.207.111",
         user="sql_dev_mavmedia",
@@ -128,8 +145,8 @@ def insert_db(id, speaker, message):
     )
 
     mycursor = mydb.cursor()
-    sql = "INSERT INTO transcript (video, speaker,message) VALUES (%s, %s,%s)"
-    val = (id, speaker, message)
+    sql = "INSERT INTO transcript (video, speaker,message, time) VALUES (%s, %s,%s, %s)"
+    val = (id, speaker, message, tiempo)
     mycursor.execute(sql, val)
     mydb.commit()
     print(mycursor.rowcount, "record inserted.")
@@ -149,3 +166,24 @@ def update_db(id, speaker, remplazo):
     mycursor.execute(sql, val)
     mydb.commit()
     print(mycursor.rowcount, "record updated.")
+
+
+def transfer(id):
+    mydb = mysql.connector.connect(
+        host="159.223.207.111",
+        user="sql_dev_mavmedia",
+        password="acDf7XtRxeibxyJw",
+        database="sql_dev_mavmedia"
+    )
+    mycursor = mydb.cursor()
+    sql = "select * from transcript where video = %s"
+    val = [id]
+    mycursor.execute(sql, val)
+    myresult = mycursor.fetchall()
+    f = open("final.txt", "w")
+    for x in myresult:
+        f.write(x[4])
+        f.write(f"[{x[2]}] ")
+        f.write(x[3])
+        f.write("\n")
+        f.close()

@@ -8,18 +8,18 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 from process import *
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets, use_pages=True)
-
+server = app.server
 # intial layout
 app.layout = html.Div([
-    html.Div(
-        [
-            dcc.Link(
-                f"{page['name']} - {page['path']}", href=page["relative_path"],
-                style={"margin": "0px 20px"}
-            )
-            for page in dash.page_registry.values()
-        ]
-    ),
+    # html.Div(
+    #     [
+    #         dcc.Link(
+    #             f"{page['name']} - {page['path']}", href=page["relative_path"],
+    #             style={"margin": "0px 20px"}
+    #         )
+    #         for page in dash.page_registry.values()
+    #     ]
+    # ),
     dash.page_container
 ])
 
@@ -36,11 +36,18 @@ def parse_contents(link):
             extension = info["ext"]
             id = info["id"]
             audio = "assets/" + id + "." + extension
-            file_ready = convert_to_wav(id, audio, extension)
-            do_diarization(file_ready)
-            grupos = do_grouping()
-            gidx, speakers = do_split(id, grupos)
-            nuevodiv = do_transcribe(id, gidx, speakers)
+            if check(id) == 0:
+                file_ready = convert_to_wav(id, audio, extension)
+                do_diarization(file_ready)
+                grupos = do_grouping()
+                gidx, speakers, timestamps = do_split(id, grupos)
+                nuevodiv = do_transcribe(id, gidx, speakers, timestamps)
+                transfer(id)
+            else:
+                return html.Div(children=[
+                    html.P("It has already been processed"),
+                    dcc.Link("Visit "+id, href="http://159.223.207.111/downloader/list.php?id="+id)
+                ])
         return html.Div([
             html.H5(link),
             html.Audio(id="player", autoPlay=True, src=audio, controls=True, style={"width": "50%"}),
@@ -85,4 +92,4 @@ def update_output(clicks, changes, input_value, hijos):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True, dev_tools_hot_reload=False)
+    app.run(debug=True, dev_tools_hot_reload=False)

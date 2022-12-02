@@ -18,4 +18,10 @@ for x in myresult:
     hijos.append(dcc.Link(x[1], id=f'son_{x[0]}', href=f"archive?id={x[0]}"))
     hijos.append(html.Br())
 
-layout = html.Div(children=hijos)
+layout = html.Div(children=[
+    html.Div(
+        children=hijos
+    ),
+    html.Button(id='check', children='Check'),
+])
+

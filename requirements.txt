@@ -44,6 +44,7 @@ google-auth==2.14.1
 google-auth-oauthlib==0.4.6
 greenlet==2.0.1
 grpcio==1.50.0
+gunicorn==20.1.0
 h11==0.14.0
 hmmlearn==0.2.8
 huggingface-hub==0.10.1
